@@ -45,6 +45,9 @@ export const BUILTINS = [
   'v8',
   'repl',
   'timers',
+  'perf_hooks',
+  'fsevents',
+  './fsevents.node',
   // MWE node-fetch looks strange here, not sure what the effect of changing that would be
   'node-fetch',
   // jest is referred to in source code, like in TestUtils, but we don't want to ever bundle it up!
@@ -53,7 +56,7 @@ export const BUILTINS = [
   '@testing-library/dom',
 ];
 
-const IGNORED_MODULES = [
+export const IGNORED_MODULES = [
   'bufferutil',
   'utf-8-validate',
   'spawn-sync',
@@ -92,3 +95,4 @@ module.exports = () => ({
 
 // used by startWebServerDev to know which modules to stub
 module.exports.BUILTINS = BUILTINS;
+module.exports.IGNORED_MODULES = IGNORED_MODULES;

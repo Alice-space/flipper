@@ -69,7 +69,7 @@
   "devDependencies": {
     "@babel/eslint-parser": "^7.17.0",
     "@types/jest": "^26.0.24",
-    "@typescript-eslint/eslint-plugin": "^5.14.0",
+    "@typescript-eslint/eslint-plugin": "^5.16.0",
     "@typescript-eslint/parser": "^5.14.0",
     "babel-eslint": "^10.1.0",
     "cross-env": "^7.0.3",
@@ -113,7 +113,9 @@
   "privileged": true,
   "productName": "Flipper",
   "resolutions": {
-    "adbkit-logcat": "^2.0.1"
+    "adbkit-logcat": "^2.0.1",
+    "node-forge": "^1.0.6",
+    "minimist": "1.2.6"
   },
   "scripts": {
     "build": "cross-env NODE_ENV=production ./ts-node scripts/build-release.tsx $@",
@@ -158,7 +160,7 @@
     "tsc-plugins": "./ts-node scripts/tsc-plugins.tsx",
     "watch": "cross-env TZ=Pacific/Pohnpei node --expose-gc --stack-trace-limit=40 ./node_modules/.bin/jest --watch"
   },
-  "version": "0.139.0",
+  "version": "0.144.0",
   "workspaces": {
     "packages": [
       "scripts",

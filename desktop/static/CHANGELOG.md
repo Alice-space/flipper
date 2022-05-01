@@ -1,3 +1,26 @@
+# 0.144.0 (27/4/2022)
+
+ * [D35810827](https://github.com/facebook/flipper/search?q=D35810827&type=Commits) -  Fixes an issue on the databases plugin when there is no selected database.
+
+
+# 0.143.0 (20/4/2022)
+
+ * [D35546817](https://github.com/facebook/flipper/search?q=D35546817&type=Commits) -  Check if there's a process listening at the specified port before attempting to establish a websocket connection on iOS
+ * [D35548148](https://github.com/facebook/flipper/search?q=D35548148&type=Commits) -  Certificate signing request response to be processed on the right event loop.
+
+
+# 0.141.0 (30/3/2022)
+
+ * [D34990372](https://github.com/facebook/flipper/search?q=D34990372&type=Commits) -  Add view preview/snapshot for the Layout plugin on iOS.
+ * [D35009246](https://github.com/facebook/flipper/search?q=D35009246&type=Commits) -  Add view preview/snapshot for the Layout plugin on Android.
+
+
+# 0.140.0 (23/3/2022)
+
+ * [D34932896](https://github.com/facebook/flipper/search?q=D34932896&type=Commits) -  Make it possible to recover from malformed JSON in server requests
+ * [D34932895](https://github.com/facebook/flipper/search?q=D34932895&type=Commits) -  Respect --no-open during server startup
+
+
 # 0.138.0 (9/3/2022)
 
  * [D34627820](https://github.com/facebook/flipper/search?q=D34627820&type=Commits) -  Add Support Ukraine banner to website

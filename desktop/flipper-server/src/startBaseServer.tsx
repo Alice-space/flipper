@@ -7,13 +7,20 @@
  * @format
  */
 
+import os from 'os';
+import net from 'net';
 import express, {Express} from 'express';
-import http from 'http';
+import http, {ServerResponse} from 'http';
 import path from 'path';
 import fs from 'fs-extra';
 import {VerifyClientCallbackSync, WebSocketServer} from 'ws';
 import {WEBSOCKET_MAX_MESSAGE_SIZE} from 'flipper-server-core';
 import {parse} from 'url';
+import xdgBasedir from 'xdg-basedir';
+import proxy from 'http-proxy';
+import exitHook from 'exit-hook';
+
+import {userInfo} from 'os';
 
 type Config = {
   port: number;
@@ -26,7 +33,7 @@ export async function startBaseServer(config: Config): Promise<{
   server: http.Server;
   socket: WebSocketServer;
 }> {
-  const {app, server} = await startAssetServer(config);
+  const {app, server} = await startHTTPServer(config);
   const socket = addWebsocket(server, config);
   return {
     app,
@@ -35,7 +42,7 @@ export async function startBaseServer(config: Config): Promise<{
   };
 }
 
-function startAssetServer(
+async function startHTTPServer(
   config: Config,
 ): Promise<{app: Express; server: http.Server}> {
   const app = express();
@@ -53,12 +60,119 @@ function startAssetServer(
     });
   });
 
+  app.get('/health', (_req, res) => {
+    res.end('flipper-ok');
+  });
+
   app.use(express.static(config.staticDir));
 
+  return startProxyServer(config, app);
+}
+
+async function checkSocketInUse(path: string): Promise<boolean> {
+  if (!(await fs.pathExists(path))) {
+    return false;
+  }
+  return new Promise((resolve, _reject) => {
+    const client = net
+      .createConnection(path, () => {
+        resolve(true);
+        client.destroy();
+      })
+      .on('error', (e) => {
+        if (e.message.includes('ECONNREFUSED')) {
+          resolve(false);
+        } else {
+          console.warn(
+            `[conn] Socket ${path} is in use, but we don't know why.`,
+            e,
+          );
+          resolve(false);
+        }
+        client.destroy();
+      });
+  });
+}
+
+async function makeSocketPath(): Promise<string> {
+  const runtimeDir = xdgBasedir.runtime || '/tmp';
+  await fs.mkdirp(runtimeDir);
+  const filename = `flipper-server-${os.userInfo().uid}.sock`;
+  const path = `${runtimeDir}/${filename}`;
+
+  // Depending on the OS this is between 104 and 108:
+  // https://unix.stackexchange.com/a/367012/10198
+  if (path.length >= 104) {
+    console.warn(
+      'Ignoring XDG_RUNTIME_DIR as it would exceed the total limit for domain socket paths. See man 7 unix.',
+    );
+    // Even with the INT32_MAX userid, we should have plenty of room.
+    return `/tmp/${filename}`;
+  }
+
+  return path;
+}
+
+async function startProxyServer(
+  config: Config,
+  app: Express,
+): Promise<{app: Express; server: http.Server}> {
   const server = http.createServer(app);
 
+  // For now, we only support domain socket access on POSIX-like systems.
+  if (os.platform() === 'win32') {
+    return new Promise((resolve) => {
+      console.log(`Starting server on http://localhost:${config.port}`);
+      server.listen(config.port, undefined, () => resolve({app, server}));
+    });
+  }
+
+  const socketPath = await makeSocketPath();
+
+  if (await checkSocketInUse(socketPath)) {
+    console.warn(
+      `Cannot start flipper-server because socket ${socketPath} is in use.`,
+    );
+  } else {
+    console.info(`Cleaning up stale socket ${socketPath}`);
+    await fs.rm(socketPath, {force: true});
+  }
+
+  const proxyServer = proxy.createProxyServer({
+    target: {host: 'localhost', port: 0, socketPath},
+    autoRewrite: true,
+    ws: true,
+  });
+  console.log('Starting socket server on ', socketPath);
+  console.log(`Starting proxy server on http://localhost:${config.port}`);
+
+  exitHook(() => {
+    console.log('Cleaning up socket on exit:', socketPath);
+    // This *must* run synchronously and we're not blocking any UI loop by definition.
+    // eslint-disable-next-line node/no-sync
+    fs.rmSync(socketPath, {force: true});
+  });
+
+  proxyServer.on('error', (err, _req, res) => {
+    console.warn('Error in proxy server:', err);
+    if (res instanceof ServerResponse) {
+      res.writeHead(502, 'Failed to proxy request');
+    }
+    res.end('Failed to proxy request: ' + err);
+  });
+
+  proxyServer.on('close', () => {
+    server.close();
+  });
+
+  server.on('close', () => {
+    proxyServer.close();
+    fs.remove(socketPath);
+  });
+
   return new Promise((resolve) => {
-    server.listen(config.port, undefined, () => resolve({app, server}));
+    proxyServer.listen(config.port);
+    server.listen(socketPath, undefined, () => resolve({app, server}));
   });
 }
 
